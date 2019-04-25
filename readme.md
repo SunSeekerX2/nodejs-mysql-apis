@@ -177,33 +177,23 @@ for(let i = 0; i < 90000; i++){
 - 对于node.js操作个人认为封装的够用，用来码接口很方便，这里放一个自己项目中一个接口的实例
 
 ``` javascript
-    // 获取合同列表
-    .get('/getProtocols',  (req, res) => {
-        jwt.checkToken(req.headers.token, 'wxapp_user_admin', function (checkTokenRes) {
-            if( checkTokenRes ){
-                // 获取查询参数
-                let limit = parseInt(req.query.limit),
-                    page = (parseInt(req.query.page)  - 1) * limit,
-                    sqlObj = {sql: 'SELECT a.id,a.modelID,a.counselorID,a.userPhone,a.protocolStatus,a.serverMoney,a.serverTime,a.serverPhoneTimes,b.protocolMdoelName,c.userRelName,c.userIDcard,d.userRelName as counselorName FROM `wxapp_protocol_log` a,`wxapp_protocol_mdoel` b,`wxapp_user_user` c,`wxapp_user_counselor` d WHERE a.modelID = b.id AND a.userPhone = c.userPhone AND a.counselorID = d.id limit ?,?' ,params: [page, limit] }
+    // Get classList
+    static async getClassList(req, res){
+        jwt.checkToken(req.headers.token, 'webapp_user', async checkTokenRes => {
+            if (checkTokenRes){
+                const sqlObj = {sql: 'SELECT * FROM `webapp_class` LIMIT 0,1000'}
+                try {
+                    const data = await mysql.query(sqlObj)
+                    res.json({ code: code.success, message: code.successMsg, data }) // Request success
+                }catch (e) {
+                    res.json({code: code.execSqlFail, message: code.execSqlFailMsg, err: e.message}) // ExecSql fail
+                }
 
-                // 切换已确认和未确认状态查询
-                req.query.protocolStatus ? sqlObj = {sql: 'SELECT a.id,a.modelID,a.counselorID,a.userPhone,a.protocolStatus,a.serverMoney,a.serverTime,a.serverPhoneTimes,b.protocolMdoelName,c.userRelName,c.userIDcard,d.userRelName as counselorName FROM `wxapp_protocol_log` a,`wxapp_protocol_mdoel` b,`wxapp_user_user` c,`wxapp_user_counselor` d WHERE a.modelID = b.id AND a.userPhone = c.userPhone AND a.counselorID = d.id AND a.protocolStatus = ? limit ?,?' ,params: [req.query.protocolStatus, page, limit] } : null
-
-                let count = 0
-                // 查询
-                mysql.query({sql: 'SELECT COUNT(*) FROM wxapp_protocol_log'})
-                    .then( data => {
-                        count = data[0]['COUNT(*)']
-                        return mysql.query(sqlObj)
-                    })
-                    .then(data => {
-                        res.json({code: 0, msg: '获取用户数据成功', "count": count, data: data})
-                    })
-            } else {
-                res.json({resultCode: 30001, msg: 'token无效'})
+            }else{
+                res.json({ code: code.noToken, message: code.noTokenMsg }) // Check token fail
             }
         })
-    })
+    }
 ```
 
 
