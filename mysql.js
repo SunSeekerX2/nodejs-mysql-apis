@@ -26,11 +26,9 @@ module.exports = {
 	transaction: async function (sqlArr) {
 		return new Promise((resolve, reject) => {
 			pool.getConnection((poolError, connection) => { // 从连接池获取连接
-				if (poolError) { // 获取连接失败，返回错误
-					return reject(poolError)
-				}
+				if (poolError) {return reject(poolError)} // 获取连接失败，返回错误
 				connection.beginTransaction(async err => { // 开始事务
-					if (err) {return reject(err)} // 获取连接失败，返回错误
+					if (err) {return reject(err)} // 开始事务失败，返回错误
 					let result = [],	// 结果集
 						errInfo = null	//错误对象
 					for (let i = 0; i < sqlArr.length; i++) { // 循环查询
