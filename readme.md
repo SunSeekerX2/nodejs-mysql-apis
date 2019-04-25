@@ -4,72 +4,67 @@
 
 ``` javascript
 /*
-*  name：node.js操作mysql数据库模块
-*  author：SunSeekerX
-*  time：2019年3月19日23点04分
+*  @name：node.js操作mysql数据库模块
+*  @author：SunSeekerX
+*  @time：2019年4月25日13点55分
 * */
+
 const mysql = require('mysql'),
-	pool = mysql.createPool({//创建连接池
-		host: 'localhost',//数据库链接
-		port: 3306,//端口
-		database: 'mysqltest',//数据库
-		user: 'root',//用户名
-		password: 'root',//密码
-		acquireTimeout: 15000, // 连接超时时间
-		connectionLimit: 64, // 最大连接数
-		waitForConnections: true, // 超过最大连接时排队
-		queueLimit: 0, // 排队最大数量(0 代表不做限制)
-		multipleStatements: false, // 是否允许执行多条语句
-	})
+	config = require('../../config/config'),
+	pool = mysql.createPool(config.mysqlConfig)
 
-// 基本查询
-exports.query = function(sqlObj) {
-	return new Promise((resolve, reject) => {
-		pool.getConnection((err, connection) => {// 从连接池获取连接
-			if (err) { return reject(err) }// 获取连接失败，返回错误
-			connection.query(sqlObj.sql, sqlObj.params, (error, result) => {
-				connection.release() //释放连接
-				error ? reject(error) : resolve(result) //查询结果
+module.exports = {
+	// 基本查询
+	query: async function (sqlObj) {
+		return new Promise((resolve, reject) => {
+			pool.getConnection((err, connection) => { // 从连接池获取连接
+				if (err) {return reject(err)} // 获取连接失败，返回错误
+				connection.query(sqlObj.sql, sqlObj.params, (error, result) => {
+					connection.release() // 释放连接
+					error ? reject(error) : resolve(result) // 查询结果
+				})
 			})
 		})
-	})
-}
+	},
 
-// 开启事物查询
-exports.transaction = function(sqlArr) {
-	return new Promise((resolve, reject) => {
-		pool.getConnection((err, connection) => {// 从连接池获取连接
-			connection.beginTransaction(async err => {//开始事务
-				if (err) { return reject(err) }// 获取连接失败，返回错误
-				let result = [],// 结果集
-					errInfo = null//错误对象
-				for (let i = 0; i < sqlArr.length; i++) {// 循环查询
-					try {
-						result.push(await new Promise((resolve, reject) => {//将查询结果放进结果集
-							connection.query(sqlArr[i].sql, sqlArr[i].params, (err, result) => {//查询
-								err ? reject(err) : resolve(result)
-							})
-						}))
-					} catch (e) { // sql语句执行出错，跳出循环，不继续执行
-						errInfo = e
-						break
+	// 开启事物查询
+	transaction: async function (sqlArr) {
+		return new Promise((resolve, reject) => {
+			pool.getConnection((poolError, connection) => { // 从连接池获取连接
+				if (poolError) { // 获取连接失败，返回错误
+					return reject(poolError)
+				}
+				connection.beginTransaction(async err => { // 开始事务
+					if (err) {return reject(err)} // 获取连接失败，返回错误
+					let result = [],	// 结果集
+						errInfo = null	//错误对象
+					for (let i = 0; i < sqlArr.length; i++) { // 循环查询
+						try {
+							result.push(await new Promise((resolve, reject) => { // 将查询结果放进结果集
+								connection.query(sqlArr[i].sql, sqlArr[i].params, (err, result) => { // 查询
+									err ? reject(err) : resolve(result)
+								})
+							}))
+						} catch (e) { // sql语句执行出错，跳出循环，不继续执行
+							errInfo = e
+							break
+						}
 					}
-				}
-				pool.releaseConnection(connection)// 释放链接
-				if (errInfo) {
-					connection.rollback(() => {//有数据条目执行失败, 回滚代码
-						reject(errInfo)
-					})
-				} else {
-					connection.commit(err => {// 语句全部执行成功，commit提交
-						err ? reject(err) : resolve(result)
-					})
-				}
+					pool.releaseConnection(connection) // 释放链接
+					if (errInfo) {
+						connection.rollback(() => { // 有数据条目执行失败, 回滚代码
+							reject(errInfo)
+						})
+					} else {
+						connection.commit(err => { // 语句全部执行成功，commit提交
+							err ? reject(err) : resolve(result)
+						})
+					}
+				})
 			})
 		})
-	})
+	}
 }
-
 ```
 
 ## 使用以及注意事项
@@ -77,8 +72,8 @@ exports.transaction = function(sqlArr) {
 - 本工具模块封装于本人初尝node与es7，代码潦草，以及不合理之处请指出，本人心里感激不尽。
 - 感谢妖火论坛一位老哥的帮忙，真心感谢
 - 数据表引擎类型一定为支持事务类型（一般为`InnoDB`）
-- 可以保证sqlArr中的执行顺序由上到下，全部执行成功返回的结果与执行顺序相同
 - 本次测试环境
+- 支持es7 await
 
 |      名称       |       值        |           说明            |
 | :-------------: | :-------------: | :-----------------------: |
@@ -174,7 +169,7 @@ for(let i = 0; i < 90000; i++){
 }
 ```
 
-- 插入同样的9W条数据用时`39秒`左右，推测是node.js执行瓶颈
+- 插入同样的9W条数据用时`39秒`左右
 
 
 
